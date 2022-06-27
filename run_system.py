@@ -62,8 +62,3 @@ def main():
 
 
 result = main()
-
-if result:
-    print("----------------------------------tor network is running")
-else:
-    print("----------------------------------there was an error running the tor network")
