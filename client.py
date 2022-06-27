@@ -4,6 +4,7 @@ import onion_protocol
 import server_protocol
 import main_protocol
 import encryption_methods
+import client_methods
 
 
 NUMBER_OF_PORTS = 3
@@ -114,7 +115,8 @@ def process_data(data, msg_type, args):
 
 
 def main():
-    name = "bob"
+    list_of_messages_to_server = client_methods.generate_messages_for_server()
+    message_to_server_index = 0
 
     # asking onion server for a route
     onion_socket = socket.socket()
@@ -238,7 +240,7 @@ def main():
                     if relay_number < 4:
                         unencrypted_msg = onion_protocol.create_message(2, [True, 0, P, G])
                     else:
-                        unencrypted_msg = server_protocol.create_message(name)
+                        unencrypted_msg = server_protocol.create_message(list_of_messages_to_server[0])
 
                 # encrypting messages to send
                 encrypted_msg = pack_message(unencrypted_msg, keys)
@@ -254,9 +256,16 @@ def main():
                     return
 
                 print("server's answer:" + processed_data2)
-                print("finished")
-                current_socket.close()
-                break
+
+                message_to_server_index += 1
+                if message_to_server_index < len(list_of_messages_to_server):
+                    unencrypted_msg = server_protocol.create_message(list_of_messages_to_server[message_to_server_index])
+                    encrypted_msg = pack_message(unencrypted_msg, keys)
+                    messages_to_send.append((current_socket, main_protocol.create_message(encrypted_msg).encode()))
+                else:
+                    print("finished")
+                    current_socket.close()
+                    break
 
 
 main()

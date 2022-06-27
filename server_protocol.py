@@ -30,4 +30,4 @@ def create_reply(message):
     :param message: message
     :return: creates a relpy and returns it
     """
-    return "hello " + message
+    return "ok"

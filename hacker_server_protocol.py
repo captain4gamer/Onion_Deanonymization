@@ -76,6 +76,7 @@ def process_message(msg_type, data, from_relay):
             return False, []
 
         # return id
+        print("the whole id:", data)
         return True, [data[FIELD_LENGTH_BYTES:]]
 
     elif msg_type == 1:
@@ -231,6 +232,9 @@ def create_connection_id(port, connection_counter):
 
 # TODO: comment
 def is_valid_id(con_id):
+    if type(con_id) != str:
+        return False
+
     if len(con_id) < 2 + CONNECTION_COUNTER_LENGTH + 1:
         return False
 
