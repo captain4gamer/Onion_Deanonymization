@@ -64,17 +64,6 @@ def process_data(msg_type, data, current_sock):
         return True, []
 
 
-def is_port_fake_relay(port):
-    """
-    :param port: port
-    :return: checks if a port is of a fake relay
-    """
-    for sock in client_sockets:
-        if port == sock.getpeername():
-            return True
-    return False
-
-
 def connect_fake_relays():
     """
     :return: when a pair of fake relays check eachother if they are a fake relay they send it to
