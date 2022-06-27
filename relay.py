@@ -132,7 +132,7 @@ server_socket.bind(("127.0.0.1", MY_PORT))
 server_socket.listen()
 print("Listening for clients...")
 
-
+# connect_user_port stores a list of pairs of ports that are connected through this relay
 connect_user_port = []
 user_values = []
 client_sockets = []
@@ -168,11 +168,10 @@ while True:
             if not is_valid:
                 remove_connection(current_socket)
             else:
-                # handle user
 
-                # checks if the original message comes from a client or a relay
+                # checks if the message if going by the route or backwards through the route
                 if get_user_values(current_socket) is not None:
-                    # if it's from a client
+                    # if it's going by the route
 
                     u_values = get_user_values(current_socket)
                     level = u_values[1]["level"]

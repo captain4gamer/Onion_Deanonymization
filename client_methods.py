@@ -7,6 +7,10 @@ PASSWORD_LENGTH = 10
 
 
 def generate_messages_for_server():
+    """
+    :return: generates a name,last name, phone number and a password for a client
+    """
+
     # generate name
     name = random.choice(NAMES)
 

@@ -92,7 +92,7 @@ def encrypt(message, key):
     """
     :param message: message
     :param key: key
-    :return: encryptes/decryptes(with xor) a message with a key and returns it
+    :return: encrypts/decrypts(with xor) a message with a key and returns it
     """
 
     # makes the key the same size as the message
@@ -105,5 +105,5 @@ def encrypt(message, key):
     if len(message) < len(key):
         key = key[:len(message)]
 
-    # encryptes/decryptes
+    # encrypts/decrypts
     return "".join([chr(ord(a) ^ ord(b)) for (a, b) in zip(message, key)])

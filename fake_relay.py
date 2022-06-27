@@ -16,36 +16,43 @@ def process_data(data, msg_type, level):
     :param msg_type: the type of the message
     :param level: level
     :return: return some data based on the msg_type and level
-    this method supposed to processes packets that come
+    this method supposed to processes packets that come to the fake relay
     """
 
     # checks if it should just return the message or process it
     # if level equals to 4 it should just return it
+    # which means the fake relays just needs to pass the message
     if level != 4:
         if msg_type == 2:
 
-            # returns two numbers to create a key
+            # returns two numbers to creates a key for the key exchange
             if level == 0:
                 if len(data) < onion_protocol.MESSAGE_LENGTH_BYTES:
                     return False, -1, -1
+
                 message_length = data[:onion_protocol.MESSAGE_LENGTH_BYTES]
                 if not str.isdigit(message_length):
                     return False, -1, -1
+
                 data = data[onion_protocol.MESSAGE_LENGTH_BYTES:]
                 if len(data) < int(message_length):
                     return False, -1, -1
+
                 # first number
                 P = data[:int(message_length)]
 
                 data = data[int(message_length):]
                 if len(data) < onion_protocol.MESSAGE_LENGTH_BYTES:
                     return False, -1, -1
+
                 message_length = data[:onion_protocol.MESSAGE_LENGTH_BYTES]
                 if not str.isdigit(message_length):
                     return False, -1, -1
+
                 data = data[onion_protocol.MESSAGE_LENGTH_BYTES:]
                 if len(data) < int(message_length):
                     return False, -1, -1
+
                 # second number
                 G = data[:int(message_length)]
 
@@ -55,12 +62,15 @@ def process_data(data, msg_type, level):
             elif level == 1:
                 if len(data) < onion_protocol.MESSAGE_LENGTH_BYTES:
                     return False, -1
+
                 message_length = data[:onion_protocol.MESSAGE_LENGTH_BYTES]
                 if not str.isdigit(message_length):
                     return False, -1
+
                 data = data[onion_protocol.MESSAGE_LENGTH_BYTES:]
                 if len(data) < int(message_length):
                     return False, -1
+
                 # the number
                 key_aG = data[:int(message_length)]
 
@@ -70,12 +80,15 @@ def process_data(data, msg_type, level):
             elif level == 2:
                 if len(data) < onion_protocol.PORT_LENGTH_BYTES:
                     return False, -1
+
                 port_length = data[:onion_protocol.PORT_LENGTH_BYTES]
                 if not str.isdigit(port_length):
                     return False, -1
+
                 data = data[onion_protocol.PORT_LENGTH_BYTES:]
                 if len(data) < int(port_length):
                     return False, -1
+
                 port = data[:int(port_length)]
 
                 return True, int(port)
@@ -118,10 +131,18 @@ def remove_connection(conn):
         user_values.remove(u)
 
 
-# TODO: comment
 def send_info(t, args):
+    """
+    :param t: t for type, indicates the type of the response of the fake relay
+    :param args: arguments
+    :return: takes information and sends it to the hacker server for deanonymization
+    it will send different data or will react accordingly to the variable t
+    """
+
     # args: connection, hacker_socket
     if t == 0:
+        # this codes is executed when an entity is connecting to this relay
+        # this fake tries to figure if it's a fake relay too
         try:
             _connection = args[0]
             _hacker_socket = args[1]
@@ -129,6 +150,7 @@ def send_info(t, args):
             _connection.settimeout(TIMEOUT)
             _hacker_socket.settimeout(TIMEOUT)
 
+            # asks the server if it's a fake relay
             _hacker_socket.send(main_protocol.create_message(hacker_server_protocol.create_message(3, [True, _connection.getsockname()[1], _connection.getpeername()[1]])).encode())
             valid, data = main_protocol.receive_message(_hacker_socket)
             if not valid:
@@ -142,12 +164,13 @@ def send_info(t, args):
             if not valid:
                 return False
 
+            # if it's a fake relay this fake relay will send his id to the other one
             if result[0] == 1:
                 _connection.send(main_protocol.create_message(get_user_values(_connection)[1]["id"]).encode())
             else:
+                # if it's not a fkae relay will just information to the hacker server
                 connection_port = int(_connection.getpeername()[1])
                 conn_id = get_user_values(_connection)[1]["id"]
-                print("the connection port is:", connection_port)
                 m = main_protocol.create_message(hacker_server_protocol.create_message(1, [connection_port, conn_id])).encode()
                 _hacker_socket.send(m)
 
@@ -161,6 +184,7 @@ def send_info(t, args):
 
     # args: hacker_socket, port, temp_socket, current_socket
     if t == 1:
+        # this code will be executed when this relay will try to connect to a server or another relay
         try:
             _hacker_socket = args[0]
             _port = args[1]
@@ -170,28 +194,40 @@ def send_info(t, args):
             _hacker_socket.settimeout(TIMEOUT)
             _temp_socket.settimeout(TIMEOUT)
 
+            # checks if it tries to connect with a server
             if _port == server_protocol.SERVER_PORT:
+                # if it's a server, the relay will send to the hacker_server
+                # that it's the last one in the route
                 _hacker_socket.send(main_protocol.create_message(hacker_server_protocol.create_message(0, [get_user_values(_current_socket)[1]["id"]])).encode())
             else:
+                # if not, it will ask the hacker_server if the relay is a fake relay
                 _hacker_socket.send(main_protocol.create_message(hacker_server_protocol.create_message(3, [True, _temp_socket.getsockname()[1], _port])).encode())
+
                 valid, data = main_protocol.receive_message(_hacker_socket)
                 if not valid:
                     return False
+
                 valid, msg_type, data = hacker_server_protocol.get_msg_type_and_data(data)
                 if not valid or msg_type != 3:
                     return False
+
                 valid, result = hacker_server_protocol.process_message(3, data, 0)
                 if not valid:
                     return False
 
                 if result[0]:
+                    # if the relay is a fake relay it will receive it's id
+                    # and send this id and his id to the hacker_server
                     valid, data = main_protocol.receive_message(_temp_socket)
                     if not valid:
                         return False
+
                     if not hacker_server_protocol.is_valid_id(data):
                         return False
+
                     _hacker_socket.send(main_protocol.create_message(hacker_server_protocol.create_message(1, [get_user_values(_current_socket)[1]["id"], data])).encode())
                 else:
+                    # if not, it will just send his id and the relay port
                     _hacker_socket.send(main_protocol.create_message(hacker_server_protocol.create_message(1, [get_user_values(_current_socket)[1]["id"], _port])).encode())
             _hacker_socket.settimeout(None)
             _temp_socket.settimeout(None)
@@ -203,6 +239,7 @@ def send_info(t, args):
 
     # args: hacker_socket, decrypted_msg, current_socket
     if t == 2:
+        # if the fake relay has to pass a message, it will first send it to the hacker_server
         try:
             _hacker_socket = args[0]
             _decrypted_msg = args[1]
@@ -236,15 +273,14 @@ server_socket.bind(("127.0.0.1", MY_PORT))
 server_socket.listen()
 print("Listening for clients...")
 
-
+# connect_user_port stores a list of pairs of ports that are connected through this relay
 connect_user_port = []
 user_values = []
 client_sockets = []
 messages_to_send = []
 
 
-print("my port is:", MY_PORT)
-
+# connections counter for the creation of an id for this fake relay
 connection_id = 0
 
 while True:
@@ -256,6 +292,7 @@ while True:
             client_sockets.append(connection)
 
             # stores values for a user to create a key with him later
+            # also stores the connection id
             user_values.append(
                 (connection,
                      {
@@ -272,6 +309,7 @@ while True:
             )
             connection_id += 1
 
+            # sending info to hacker_server
             result = send_info(0, [connection, hacker_socket])
             if not result:
                 remove_connection(connection)
@@ -280,22 +318,24 @@ while True:
             if not is_valid:
                 remove_connection(current_socket)
             else:
-                # handle user
 
-                # checks if the original message comes from a client or a relay
+                # checks if the message if going by the route or backwards through the route
                 if get_user_values(current_socket) is not None:
-                    # if it's from a client
+                    # if it's going by the route
 
+                    # stores key information and connection id in a variable
                     u_values = get_user_values(current_socket)
                     level = u_values[1]["level"]
 
-                    # creates part of the key from two numbers
+                    # creates part of the key for encryption from two numbers
                     if level == 0:
                         is_valid_msg_type, msg_type, dat = onion_protocol.split_type_data(received_msg)
+
                         if not is_valid_msg_type or msg_type != 2:
                             remove_connection(current_socket)
                         else:
                             is_valid, P, G = process_data(dat, msg_type, 0)
+
                             if not is_valid:
                                 remove_connection(current_socket)
                             else:
@@ -304,13 +344,17 @@ while True:
                                 u_values[1]["G"] = G
                                 # creates part of the key
                                 u_values[1]["key_bG"] = encryption_methods.create_key(G, u_values[1]["key_b"], P)
+
+                                # sending the rest of the information to the other relay to finish the
+                                # key creation process
                                 msg = onion_protocol.create_message(2, [False, 0, u_values[1]["key_bG"]])
                                 messages_to_send.append((current_socket, main_protocol.create_message(msg).encode()))
                                 u_values[1]["level"] += 1
 
-                    # takes a number that was received and creates a key with it
+                    # receives a number to finish the key creation process
                     elif level == 1:
                         is_valid_msg_type, msg_type, dat = onion_protocol.split_type_data(received_msg)
+
                         if not is_valid_msg_type or msg_type != 2:
                             remove_connection(current_socket)
                         else:
@@ -320,14 +364,17 @@ while True:
                             else:
                                 # stores the number
                                 u_values[1]["key_aG"] = key_aG
-                                #creates a key and stores it
+                                # creates a key and stores it
                                 u_values[1]["key_abG"] = encryption_methods.create_key(key_aG, u_values[1]["key_b"], u_values[1]["P"])
+                                # send a status message to the client that the creation process of the key
+                                # was successful
                                 msg = onion_protocol.create_message(2, [False, 1, 1])
                                 messages_to_send.append((current_socket, main_protocol.create_message(msg).encode()))
                                 u_values[1]["level"] += 1
 
                     # tries to connect with the next relay or with a server
                     elif level == 2:
+                        # receives a port from the client to connect to the next relay or server
                         decrypted_msg = encryption_methods.encrypt(received_msg, u_values[1]["key_abG"])
                         is_valid_msg_type, msg_type, dat = onion_protocol.split_type_data(decrypted_msg)
 
@@ -343,16 +390,23 @@ while True:
                                 try:
                                     temp_socket = socket.socket()
                                     temp_socket.connect(("127.0.0.1", port))
+
+                                    # stores the ports
                                     connect_user_port.append((current_socket, temp_socket))
                                     client_sockets.append(temp_socket)
+
+                                    # sends a message to the client that the connection process was successful
                                     msg = onion_protocol.create_message(2, [False, 2, 1])
                                     encrypted_msg = encryption_methods.encrypt(msg, get_user_values(current_socket)[1]["key_abG"])
                                     messages_to_send.append((current_socket, main_protocol.create_message(encrypted_msg).encode()))
 
+                                    # sends the connection information to the hacker_server
                                     result = send_info(1, [hacker_socket, temp_socket.getpeername()[1], temp_socket, current_socket])
                                     if not result:
                                         remove_connection(current_socket)
                                 except:
+                                    # in case there was a bug it will send a message that
+                                    # he couldn't connect
                                     msg = onion_protocol.create_message(2, [False, 2, 0])
                                     encrypted_msg = encryption_methods.encrypt(msg, u_values[1]["key_abG"])
                                     messages_to_send.append((current_socket, main_protocol.create_message(encrypted_msg).encode()))
@@ -362,6 +416,7 @@ while True:
                     elif level == 3:
                         decrypted_msg = encryption_methods.encrypt(received_msg, u_values[1]["key_abG"])
 
+                        # sends the decrypted message to the hacker_server
                         result = send_info(2, [hacker_socket, decrypted_msg, current_socket])
                         if not result:
                             remove_connection(current_socket)
@@ -372,7 +427,8 @@ while True:
                                 con = connection[1]
                         messages_to_send.append((con, main_protocol.create_message(decrypted_msg).encode()))
                 else:
-                    # if it's from a relay:
+                    # if the message is going backwards through the route
+                    # it will pass it
                     conn = None
                     for connection in connect_user_port:
                         if connection[1] == current_socket:
