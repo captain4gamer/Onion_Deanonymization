@@ -50,7 +50,7 @@ def main():
                 print("----------------------------------error running the process")
                 if task[0] not in processes_running:
                     for p in task_processes:
-                        os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+                        os.kill(p.pid, signal.SIGTERM)
                     return False
 
     print("----------------------------------status:")
